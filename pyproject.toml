@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multi-agent-android-qa"
+version = "0.1.0"
+description = "A runnable multi-agent Android QA simulation"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pydantic>=2.6",
+  "python-dotenv>=1.0",
+  "openai>=1.35.7",
+  "rich>=13.7.1",
+  "loguru>=0.7.2",
+  "numpy>=1.26",
+  "imageio>=2.34",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2.0"]
+
+[project.scripts]
+android-qa = "qa_agents.run_test:main"
+android-qa-health = "qa_agents.health:main"
+android-qa-benchmark = "qa_agents.benchmark:main"
+android-qa-demo = "qa_agents.demo:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+qa_agents = ["demo_assets/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

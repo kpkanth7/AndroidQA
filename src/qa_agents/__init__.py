@@ -1,1 +1,3 @@
-from .run_test import main
+"""Multi-agent Android QA simulation."""
+
+__version__ = "0.1.0"

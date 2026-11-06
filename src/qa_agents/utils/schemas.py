@@ -35,5 +35,5 @@ class Verification(BaseModel):
     need_replan: bool = False
 
 class LogRecord(BaseModel):
-    event: Literal["plan","action","verify","replan","finish"]
+    event: Literal["run_metadata","run_metrics","agent_message","llm","plan","plan_rejection","plan_fallback","action","verify","replan","finish"]
     payload: Dict[str, Any]
