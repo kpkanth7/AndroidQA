@@ -160,12 +160,20 @@ class AndroidWorldEnv(EnvLike):
 
     def _wait_for(self, condition, reason: str) -> Observation:
         deadline = time.monotonic() + _UI_TIMEOUT_SECONDS
+        last_error = None
         while True:
-            observation = self._observe()
-            if condition(observation):
-                return observation
+            try:
+                observation = self._observe()
+            except (RuntimeError, subprocess.TimeoutExpired) as error:
+                # UIAutomator can briefly fail while a clicked page is settling.
+                last_error = error
+            else:
+                last_error = None
+                if condition(observation):
+                    return observation
             if time.monotonic() >= deadline:
-                raise RuntimeError(reason)
+                detail = f"; last observation error: {last_error}" if last_error else ""
+                raise RuntimeError(reason + detail) from last_error
             time.sleep(0.5)
 
     def _click(self, element) -> None:
@@ -228,7 +236,13 @@ class AndroidWorldEnv(EnvLike):
 
             raise ValueError(f"Unsupported AndroidWorld action: {action.name}")
         except Exception as error:
-            return False, self._last_obs, str(error)
+            # A click may have succeeded even when its observation failed.
+            # Recovery must use the current screen whenever it is readable.
+            try:
+                observation = self._observe()
+            except Exception:
+                observation = self._last_obs
+            return False, observation, str(error)
 
     def render(self):
         if not self.enable_render:
