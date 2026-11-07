@@ -3,6 +3,9 @@
 Run repeatable QA tasks against a simulated Android Settings device. Each run
 produces a JSON trace and a Markdown report.
 
+[Try the public rule-only demo](https://android-qa-demo.onrender.com).
+The free service may take a moment to wake after inactivity.
+
 ## Mock pipeline
 
 - **Planner** selects actions using deterministic rules or an optional LLM. Recovery uses deterministic rules.
