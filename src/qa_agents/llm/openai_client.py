@@ -44,6 +44,7 @@ class LLMClient:
         self.base_url = config["base_url"]
         self.client = None
         self.calls: List[Dict[str, Any]] = []
+        self.single_decision = False
         if self.api_key:
             try:
                 from openai import OpenAI
@@ -175,6 +176,22 @@ class LLMClient:
                 return None
         return None
 
+    @staticmethod
+    def _visible_choices(tree: dict) -> dict:
+        """Expose every supported control and both switch states, independently of the goal."""
+        choices = {}
+        def add(label, intent, target=None, **params):
+            choices[label] = dict(id=1, description=label, intent=intent, target=target, params=params)
+        add("Open Settings", "open_settings")
+        add("Wait", "wait", seconds=1)
+        for label in tree.get("buttons", []) + tree.get("list", []):
+            add("Tap " + label, "tap", label)
+        for label in tree.get("toggles", {}):
+            for state in ("on", "off"):
+                add(f"Switch {label} {state}", "toggle", label, state=state)
+                add(f"Verify {label} {state}", "verify", label, expected_state=state)
+        return choices
+
     def plan_next(self, goal: str, observation: dict, history: list) -> Optional[Dict[str, Any]]:
         """Choose one action using the latest screen and completed action history."""
         if not self.client:
@@ -203,7 +220,19 @@ class LLMClient:
                 "observation": {"screen": after["screen"], "ui_tree": after["ui_tree"]},
             })
         user = json.dumps({"goal": goal, "observation": visible, "history": visible_history}, ensure_ascii=False)
-        for attempt in range(2):
+        choices = None
+        response_format = {"type": "json_object"}
+        if self.single_decision:
+            choices = self._visible_choices(observation["ui_tree"])
+            system = ("Choose one available Android action from the schema to advance the supplied goal. "
+                      "Use the observed screen and action history. Verify only when the goal is complete.")
+            response_format = {"type": "json_schema", "json_schema": {
+                "name": "android_action", "strict": True, "schema": {
+                    "type": "object", "properties": {"action": {"type": "string", "enum": list(choices)}},
+                    "required": ["action"], "additionalProperties": False,
+                },
+            }}
+        for attempt in range(1 if self.single_decision else 2):
             started_at = time.perf_counter()
             latency_ms = None
             response = None
@@ -212,10 +241,17 @@ class LLMClient:
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-                    temperature=0.2, response_format={"type": "json_object"},
+                    temperature=0.2, response_format=response_format,
                 )
                 latency_ms = (time.perf_counter() - started_at) * 1000
-                steps = self._parse_plan_steps(response.choices[0].message.content or "")
+                content = response.choices[0].message.content or ""
+                if choices is not None:
+                    choice = json.loads(content).get("action")
+                    if choice not in choices:
+                        raise MalformedPlanError("Expected one of the visible actions.")
+                    self._record_call(operation, latency_ms, response=response)
+                    return choices[choice]
+                steps = self._parse_plan_steps(content)
                 if len(steps) != 1:
                     raise MalformedPlanError("Expected exactly one action.")
                 self._record_call(operation, latency_ms, response=response)

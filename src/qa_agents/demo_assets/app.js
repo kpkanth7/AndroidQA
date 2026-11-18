@@ -19,6 +19,8 @@ let position = 0;
 let timer;
 let busy = false;
 let configured = false;
+let activeRun;
+let decisionLimit = 0;
 let recording;
 const images = new Map();
 
@@ -77,6 +79,7 @@ function showStep() {
   const step = steps[position];
   const last = position === steps.length - 1;
   if (last) pause();
+  updateDecisionPanel(step);
   drawPhone(step);
   byId('phase').textContent = step.role + ' · ' + (position + 1) + ' of ' + steps.length;
   byId('caption').textContent = step.caption;
@@ -114,6 +117,8 @@ reducedMotion.addEventListener('change', () => { if (reducedMotion.matches) paus
 function preview() {
   pause();
   steps = [];
+  activeRun = null;
+  byId('decision-panel').hidden = true;
   byId('controls').hidden = byId('result').hidden = byId('error').hidden = true;
   byId('goal').textContent = form.querySelector('input[name=scenario]:checked + span').textContent;
   byId('run').textContent = 'Run ' + tasks[selectedTask()][0] + ' test';
@@ -141,7 +146,8 @@ function timeline(events, scenario) {
   const meta = get('run_metadata');
   let observation = {screen: meta.mock_initial_state.screen, info: meta.mock_initial_state, ui_tree: meta.mock_initial_ui_tree || home.ui_tree};
   const sequence = [];
-  const add = (role, caption, extra = {}) => sequence.push({role, caption, observation, ...extra});
+  let completed = 0;
+  const add = (role, caption, extra = {}) => sequence.push({role, caption, observation, completed, ...extra});
   add('Planner', get('plan').goal, {delay: 850});
   let lastCheck;
   for (const {event, payload: p} of events) {
@@ -149,6 +155,7 @@ function timeline(events, scenario) {
       const touches = ['tap', 'toggle', 'open_settings', 'open_app'].includes(p.intent);
       if (touches) add('Executor', actionLabel(p), {target: p.target || 'Settings', delay: 780});
       const previous = observation;
+      completed++;
       observation = p.observation;
       if (p.intent === 'verify') continue;
       const toggles = observation.ui_tree.toggles || {};
@@ -193,7 +200,8 @@ function metrics(items) {
   }));
 }
 
-function renderRun(data, scenario) {
+function renderRun(data, scenario, settings) {
+  activeRun = settings;
   const get = name => data.events.find(e => e.event === name)?.payload;
   const counts = get('run_metrics');
   const plan = get('plan');
@@ -243,7 +251,7 @@ function failure(error) {
   status('Error');
 }
 
-form.onchange = preview;
+form.onchange = () => { preview(); showComparisons(); };
 form.onsubmit = async event => {
   event.preventDefault();
   if (busy || !configured) return;
@@ -256,7 +264,9 @@ form.onsubmit = async event => {
   try {
     const data = await json('/api/run', {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({scenario, planner: byId('planner').value, inject_failure: byId('failure').checked})});
-    renderRun(data, scenario);
+    const entry = {scenario, planner: byId('planner').value, fault: byId('failure').checked, at: Date.now(), data};
+    saveRun(entry);
+    renderRun(data, scenario, entry);
   } catch (error) { failure(error); }
   finally { lock(false); }
 };
@@ -310,6 +320,7 @@ async function init() {
   try {
     const config = await json('/api/config');
     byId('planner-field').hidden = !config.planners.includes('llm');
+    decisionLimit = config.decision_limit || 0;
     configured = true;
     byId('planner-note').textContent = 'Rule-based simulation · 0 model calls';
     byId('run').disabled = busy;

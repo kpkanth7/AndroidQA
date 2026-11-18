@@ -4,5 +4,5 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install .
-    startCommand: python -m qa_agents.demo --rule-only
+    startCommand: python -m qa_agents.demo --public-decisions
     healthCheckPath: /api/config

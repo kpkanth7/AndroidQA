@@ -14,23 +14,28 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from . import demo_decision
 from .benchmark import SCENARIOS
 
 ASSETS = Path(__file__).parent / "demo_assets"
 ASSET_TYPES = {
     "index.html": "text/html; charset=utf-8",
     "style.css": "text/css; charset=utf-8",
+    "experiments.js": "text/javascript; charset=utf-8",
+    "comparisons.json": "application/json",
     "app.js": "text/javascript; charset=utf-8",
     "bluetooth-session.json": "application/json",
     "bluetooth-toggle.png": "image/png",
     "bluetooth-verify.png": "image/png",
 }
 RUN_LOCK = threading.Lock()
+DECISION_LOCK = threading.Lock()
 REQUEST_TIMES: deque[float] = deque()
 
 
 class DemoHandler(BaseHTTPRequestHandler):
     rule_only = False
+    public_decisions = False
 
     def log_message(self, format, *args):
         # Do not log request bodies, provider output or credentials.
@@ -51,7 +56,10 @@ class DemoHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if urlsplit(self.path).path == "/api/config":
-            self.json_reply(200, {"environment": "mock", "planners": ["rule"] if self.rule_only else ["rule", "llm"]})
+            config = {"environment": "mock", "planners": ["rule"] if self.rule_only else ["rule", "llm"]}
+            if self.public_decisions and demo_decision.configured():
+                config["decision_limit"] = demo_decision.DAILY_LIMIT
+            self.json_reply(200, config)
             return
         path = urlsplit(self.path).path
         filename = "index.html" if path == "/" else path.removeprefix("/")
@@ -61,7 +69,7 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.reply(200, (ASSETS / filename).read_bytes(), ASSET_TYPES[filename])
 
     def do_POST(self) -> None:
-        if self.path != "/api/run":
+        if self.path not in ("/api/run", "/api/decision"):
             self.json_reply(404, {"error": "Not found."})
             return
         origin = self.headers.get("Origin")
@@ -75,13 +83,32 @@ class DemoHandler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(size))
             if not isinstance(body, dict) or body.get("scenario") not in SCENARIOS:
                 raise ValueError()
-            if body.get("planner") not in ("rule", "llm") or type(body.get("inject_failure")) is not bool:
+            if type(body.get("inject_failure")) is not bool:
+                raise ValueError()
+            if self.path == "/api/decision":
+                if not self.public_decisions or not demo_decision.configured():
+                    self.json_reply(403, {"error": "Live decisions are unavailable."})
+                    return
+                count = body.get("completed")
+                if type(count) is not int or not 0 <= count <= 20:
+                    raise ValueError()
+            elif body.get("planner") not in ("rule", "llm"):
                 raise ValueError()
         except (ValueError, TypeError, json.JSONDecodeError):
             self.json_reply(400, {"error": "Invalid request."})
             return
 
-        self.json_reply(*self.run_scenario(body))
+        if self.path == "/api/decision":
+            if not DECISION_LOCK.acquire(blocking=False):
+                self.json_reply(429, {"error": "Another live decision is in progress. Try again shortly."})
+                return
+            try:
+                status, data = demo_decision.decision(SCENARIOS[body["scenario"]], body["inject_failure"], count)
+            finally:
+                DECISION_LOCK.release()
+            self.json_reply(status, data)
+        else:
+            self.json_reply(*self.run_scenario(body))
 
     def run_scenario(self, body: dict) -> tuple[int, dict]:
         if self.rule_only and body["planner"] != "rule":
@@ -116,10 +143,12 @@ class DemoHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--rule-only", action="store_true", help="Disable LLM requests, including direct API requests, for a public demo.")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--public-decisions", action="store_true", help="Run complete tests with rules and allow one metered Groq decision.")
+    mode.add_argument("--rule-only", action="store_true", help="Disable LLM requests, including direct API requests, for a public demo.")
     args = parser.parse_args()
     port = int(os.environ.get("PORT", "7860"))
-    handler = type("ConfiguredDemoHandler", (DemoHandler,), {"rule_only": args.rule_only})
+    handler = type("ConfiguredDemoHandler", (DemoHandler,), {"rule_only": args.rule_only or args.public_decisions, "public_decisions": args.public_decisions})
     server = ThreadingHTTPServer(("0.0.0.0", port), handler)
     print(f"Android QA demo available on port {port}", flush=True)
     server.serve_forever()

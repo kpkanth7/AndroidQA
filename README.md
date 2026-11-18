@@ -36,14 +36,23 @@ scenarios, repeated three times per configuration.
 
 The separate emulator pilot passed 3/3 tasks: two with only LLM actions and one
 with rule fallback. I also verified recovery from interrupted Wi-Fi and
-Bluetooth actions. The test suite has 77 passing tests. These are small,
+Bluetooth actions. The test suite has 81 passing tests. These are small,
 controlled evaluations; broader Android coverage is still future work.
 
 ## Try it
 
 The public demo runs simulated tasks with rules, including an optional temporary
-failure. It makes no LLM calls and runs on Render's free instance, so the first
-visit after inactivity may take a moment to load.
+failure. Your latest 12 runs stay in the browser tab. Compare the selected task
+against measured Rules, GPT-OSS 20B, and GPT-OSS 120B runs with the same
+starting state and failure setting. Normal runs have three repetitions per
+planner. The separate injected-failure pilot has one per planner and task.
+
+During a rules playback, **Ask Groq for the next action** pauses the replay and
+runs one GPT-OSS 20B decision on a separate copy of the selected screen. This
+uses at most one provider request. A shared Upstash counter reserves each
+attempt before inference and caps the public demo at 24 per UTC day. Full
+public tests always use rules. Replaying results and comparing measurements
+use zero model calls. The free Render service can take a moment to wake up.
 
 To run it locally with Python 3.10 or newer:
 
@@ -55,5 +64,6 @@ python -m qa_agents.demo --rule-only
 ```
 
 Open `http://localhost:7860`. For local Groq experiments, configure `.env` using
-`.env.example` and start without `--rule-only`. The CLI, benchmark runner, and
-emulator pilot save traces that distinguish verified success from LLM-only success.
+`.env.example` and start without `--rule-only`. To run the public one-action mode
+locally, configure the two Upstash REST variables and Groq in `.env`, then start with `--public-decisions`.
+The CLI, benchmark runner, and emulator pilot save traces that distinguish verified success from LLM-only success.

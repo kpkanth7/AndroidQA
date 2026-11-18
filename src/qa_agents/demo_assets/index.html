@@ -6,11 +6,12 @@
   <title>AndroidQA · Device lab</title>
   <link rel="stylesheet" href="/style.css">
   <script defer src="/app.js"></script>
+  <script defer src="/experiments.js"></script>
 </head>
 <body>
   <header class="top">
     <a class="brand" href="/" aria-label="AndroidQA home"><span class="mark" aria-hidden="true">a</span>AndroidQA</a>
-    <nav aria-label="Page"><a href="#lab">Device lab</a><a href="#evaluation">Results</a></nav>
+    <nav aria-label="Page"><a href="#lab">Device lab</a><a href="#comparison">Compare</a><a href="#history">Your runs</a></nav>
   </header>
   <main>
     <section id="lab" class="lab" aria-labelledby="lab-title">
@@ -42,6 +43,11 @@
         <div class="playhead">
           <div class="readout" role="status" aria-atomic="true"><small id="phase">Simulated phone</small><p id="caption">Run the test to follow each action.</p></div>
           <div id="controls" class="controls" hidden><button id="play" type="button">Pause</button><button id="next" type="button">Next</button><button id="replay" type="button">Replay</button></div>
+          <div id="decision-panel" hidden>
+            <button type="button" id="ask">Ask Groq for the next action</button>
+            <small>One live decision on a copy of this screen. The demo shares 24 attempts per UTC day.</small>
+            <p id="decision-answer" role="status"></p>
+          </div>
           <p id="error" role="alert" hidden></p>
         </div>
       </section>
@@ -51,6 +57,16 @@
       <dl id="metrics"></dl>
       <details><summary>Inspect the event trace</summary><ol id="trace"></ol></details>
       <details id="report-panel"><summary>View the full report</summary><pre id="report"></pre></details>
+    </section>
+    <section id="history" class="experiment">
+      <h2>Your runs</h2><p id="history-note">Complete a test to save its result in this tab.</p>
+      <div id="run-list"></div>
+    </section>
+    <section id="comparison" class="experiment">
+      <h2>Compare planners</h2>
+      <p>Measured benchmark runs for your selected task and failure setting.</p>
+      <h3 id="comparison-goal"></h3><p id="comparison-note"></p>
+      <div id="comparison-data"></div>
     </section>
     <section id="evaluation" aria-labelledby="evaluation-title">
       <h2 id="evaluation-title">Evaluation results</h2>
