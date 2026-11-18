@@ -1,0 +1,24 @@
+{
+  "model": "openai/gpt-oss-20b",
+  "provider": "Groq",
+  "duration_ms": 10115.45,
+  "handoffs": 6,
+  "replans": 0,
+  "verdict": "Passed",
+  "steps": [
+    {
+      "action": "Turn Bluetooth on",
+      "latency_ms": 455.06,
+      "image": "/bluetooth-toggle.png",
+      "manager_state": "ON",
+      "verification": "Toggled Bluetooth: desired=True actual=True"
+    },
+    {
+      "action": "Verify Bluetooth is on",
+      "latency_ms": 430.19,
+      "image": "/bluetooth-verify.png",
+      "manager_state": "ON",
+      "verification": "Verified Bluetooth: desired=True actual=True"
+    }
+  ]
+}

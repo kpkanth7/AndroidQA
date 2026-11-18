@@ -17,6 +17,14 @@ from urllib.parse import urlsplit
 from .benchmark import SCENARIOS
 
 ASSETS = Path(__file__).parent / "demo_assets"
+ASSET_TYPES = {
+    "index.html": "text/html; charset=utf-8",
+    "style.css": "text/css; charset=utf-8",
+    "app.js": "text/javascript; charset=utf-8",
+    "bluetooth-session.json": "application/json",
+    "bluetooth-toggle.png": "image/png",
+    "bluetooth-verify.png": "image/png",
+}
 RUN_LOCK = threading.Lock()
 REQUEST_TIMES: deque[float] = deque()
 
@@ -45,12 +53,12 @@ class DemoHandler(BaseHTTPRequestHandler):
         if urlsplit(self.path).path == "/api/config":
             self.json_reply(200, {"environment": "mock", "planners": ["rule"] if self.rule_only else ["rule", "llm"]})
             return
-        files = {"/": ("index.html", "text/html"), "/style.css": ("style.css", "text/css"), "/app.js": ("app.js", "text/javascript")}
-        asset = files.get(urlsplit(self.path).path)
-        if not asset:
+        path = urlsplit(self.path).path
+        filename = "index.html" if path == "/" else path.removeprefix("/")
+        if filename not in ASSET_TYPES:
             self.json_reply(404, {"error": "Not found."})
             return
-        self.reply(200, (ASSETS / asset[0]).read_bytes(), asset[1] + "; charset=utf-8")
+        self.reply(200, (ASSETS / filename).read_bytes(), ASSET_TYPES[filename])
 
     def do_POST(self) -> None:
         if self.path != "/api/run":

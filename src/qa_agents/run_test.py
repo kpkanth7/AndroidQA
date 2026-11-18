@@ -127,6 +127,7 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser, resources: E
     }
     if args.env == "mock":
         metadata["mock_initial_state"] = {"screen": executor.obs.screen, **executor.obs.info}
+        metadata["mock_initial_ui_tree"] = executor.obs.ui_tree
     else:
         metadata["android_task"] = args.task
         metadata["android_initial_state"] = executor.obs.model_dump()

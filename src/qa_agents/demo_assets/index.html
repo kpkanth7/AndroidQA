@@ -1,7 +1,69 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent QA — Android simulation</title><link rel="stylesheet" href="/style.css"><script defer src="/app.js"></script></head>
-<body><header class="top"><a class="brand" href="/">agent<span>qa</span><small> / lab</small></a><span class="badge">● &nbsp; Android simulation</span></header>
-<main><section class="intro"><div><p class="eyebrow">MULTI-AGENT QUALITY ASSURANCE</p><h1>Watch a test<br><em>think it through.</em></h1><p class="lead">A small team of agents plans, executes, and verifies Android tasks in a simulated device environment.</p></div><div class="intro-note"><span>THE WORKFLOW</span><p>Plan <b>→</b> Execute <b>→</b> Verify <b>→</b> Report</p><small>Four roles. One shared goal.</small></div></section>
-<section class="workspace"><div class="control"><div class="section-head"><span class="number">01</span><div><h2>Configure a run</h2><p>Choose a task to run on the simulated device.</p></div></div><form id="run-form"><label for="scenario">Test scenario</label><select id="scenario"><option value="wifi">Toggle Wi-Fi off and on</option><option value="bluetooth">Turn Bluetooth on</option><option value="dark_mode">Enable dark mode</option><option value="camera_permission">Allow camera permission</option></select><label for="planner">Planner</label><select id="planner"><option value="rule">Rule-based · instant</option></select><label class="check"><input type="checkbox" id="failure"><span><strong>Simulate a temporary failure</strong><small>See the supervisor request a recovery plan.</small></span></label><button id="run" type="submit" disabled>Run simulation <span>↗</span></button><p class="fine" id="planner-note">Loading available planners…</p></form></div>
-<div class="results"><div class="section-head results-head"><span class="number">02</span><div><h2>Run trace</h2><p id="subtitle">The trace appears after the run finishes.</p></div><span id="status" class="status">READY</span></div><div id="empty" class="empty"><div class="device"><div class="screen"><div class="device-title">Settings</div><div class="line long"></div><div class="line"></div><div class="line long"></div><div class="line short"></div></div></div><p>Select a scenario to start a run.</p><small>Actions take place in a mock device, not an emulator.</small></div><div id="output" hidden><div id="metrics" class="metrics"></div><div class="trace-header"><h3>Agent activity</h3><span>ACTUAL RUN EVENTS</span></div><ol id="trace" class="trace"></ol><details><summary>View complete report</summary><pre id="report"></pre></details></div><p id="error" role="alert" class="error" hidden></p></div></section>
-<section class="footer-note"><div><strong>Built to be inspected.</strong><p>This demo runs a bounded mock scenario with deterministic execution and verification. The available planners are shown above.</p></div><div><strong>What it measures</strong><p>Run duration, role handoffs, verification and recovery. Results vary by run and provider availability.</p></div></section></main><footer><span>agentqa / Android QA simulation</span><span>Plan carefully. Verify everything.</span></footer></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AndroidQA · Device lab</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/" aria-label="AndroidQA home"><span class="mark" aria-hidden="true">a</span>AndroidQA</a>
+    <nav aria-label="Page"><a href="#lab">Device lab</a><a href="#evaluation">Results</a></nav>
+  </header>
+  <main>
+    <section id="lab" class="lab" aria-labelledby="lab-title">
+      <div class="setup">
+        <h1 id="lab-title">Android device lab</h1>
+        <p class="lead">Pick a test and follow the agent’s taps. See what the device reports when an action succeeds or fails.</p>
+        <form id="run-form">
+          <fieldset id="inputs">
+            <fieldset class="tasks">
+              <legend>What should AndroidQA test?</legend>
+              <label><input type="radio" name="scenario" value="wifi" checked><span>Turn Wi-Fi off and back on</span></label>
+              <label><input type="radio" name="scenario" value="bluetooth"><span>Turn Bluetooth on</span></label>
+              <label><input type="radio" name="scenario" value="dark_mode"><span>Enable dark mode</span></label>
+              <label><input type="radio" name="scenario" value="camera_permission"><span>Allow camera access</span></label>
+            </fieldset>
+            <label class="local" id="planner-field" hidden>Planner
+              <select id="planner"><option value="rule">Rule-based</option><option value="llm">Configured LLM · live request</option></select>
+            </label>
+            <label class="fault"><input type="checkbox" id="failure" checked><span>Make the first switch attempt fail<small>Watch the supervisor request a retry.</small></span></label>
+          </fieldset>
+          <p id="planner-note">Checking available planners…</p>
+          <button class="primary" id="run" disabled>Run Wi-Fi test</button>
+        </form>
+        <button type="button" id="watch" class="recording"><span aria-hidden="true">▷</span> Watch an LLM test on Android</button>
+      </div>
+      <section class="viewer" aria-labelledby="goal">
+        <div class="viewer-head"><div><span id="mode">Android simulation</span><h2 id="goal">Turn Wi-Fi off and back on</h2></div><span id="status">Ready</span></div>
+        <div class="stage"><div class="phone"><div id="display" class="display"></div></div></div>
+        <div class="playhead">
+          <div class="readout" role="status" aria-atomic="true"><small id="phase">Simulated phone</small><p id="caption">Run the test to follow each action.</p></div>
+          <div id="controls" class="controls" hidden><button id="play" type="button">Pause</button><button id="next" type="button">Next</button><button id="replay" type="button">Replay</button></div>
+          <p id="error" role="alert" hidden></p>
+        </div>
+      </section>
+    </section>
+    <section id="result" class="result" hidden>
+      <h2>Run details</h2>
+      <dl id="metrics"></dl>
+      <details><summary>Inspect the event trace</summary><ol id="trace"></ol></details>
+      <details id="report-panel"><summary>View the full report</summary><pre id="report"></pre></details>
+    </section>
+    <section id="evaluation" aria-labelledby="evaluation-title">
+      <h2 id="evaluation-title">Evaluation results</h2>
+      <div class="evidence"><div>
+        <h3>Simulated Android</h3><p>Eight scenarios, three runs each per planner.</p>
+        <table><thead><tr><th>Planner</th><th>Verified</th><th>LLM-only</th><th>Fallback</th></tr></thead>
+          <tbody><tr><th>Rules</th><td>24/24</td><td>—</td><td>—</td></tr>
+          <tr><th>GPT-OSS 20B</th><td>24/24</td><td>20/24</td><td>4/24</td></tr>
+          <tr><th>GPT-OSS 120B</th><td>24/24</td><td>23/24</td><td>1/24</td></tr></tbody>
+        </table></div>
+        <div><h3>Pixel 6 emulator pilot</h3><p>Three Android 13 tasks ran once each. Bluetooth on and off passed using only LLM actions. The Wi-Fi cycle passed with rule fallback.</p>
+        <a href="https://github.com/kpkanth7/AndroidQA#what-i-measured">Read the methodology ↗</a></div>
+      </div>
+    </section>
+  </main>
+</body></html>
